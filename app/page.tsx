@@ -461,7 +461,9 @@ export default function Home() {
       `}</style>
 
       <header>
-        <h1 className="site-title">Small Joys</h1>
+        <h1 className="site-title">
+          Small Joys<span style={{ fontStyle: 'normal', letterSpacing: '-0.02em' }}>J</span>oys
+        </h1>
         <p className="site-tagline">
           A public wall of small things people are grateful for. Anonymous. No accounts. Just moments.
         </p>
