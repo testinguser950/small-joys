@@ -33,7 +33,7 @@ const COUNTRIES = [
   { name: "United States", code: "us" }, { name: "Vietnam", code: "vn" }, { name: "Zimbabwe", code: "zw" },
 ];
 
-const SITE_URL = "https://small-joys-omega.vercel.app";
+const SITE_URL = "https://smalljoyswall.com";
 
 type Note = {
   id: string;
@@ -403,7 +403,7 @@ export default function Home() {
         )}
       </main>
 
-      <footer>Small Joys · Anonymous gratitude, shared with strangers</footer>
+      <footer>Small Joys · Anonymous gratitude, shared with strangers · <a href="mailto:hello@smalljoyswall.com" style={{color: "#C4A99A", textDecoration: "none"}}>Send feedback</a></footer>
 
       {showModal && (
         <PostModal
