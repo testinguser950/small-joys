@@ -1,143 +1,31 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { supabase } from "@/lib/supabase";
 
-const SEED_NOTES = [
-  {
-    id: 1,
-    text: "My neighbour left a container of curry outside my door without saying anything. I cried a little.",
-    city: "Singapore",
-    country: "Singapore",
-    flag: "🇸🇬",
-    time: "2 hours ago",
-    color: "#FEF3C7",
-    rotate: "-2deg",
-    type: "text",
-  },
-  {
-    id: 2,
-    text: "The bus driver waited for me even though I was still half a block away. He didn't have to.",
-    city: "Dublin",
-    country: "Ireland",
-    flag: "🇮🇪",
-    time: "4 hours ago",
-    color: "#FDE8D8",
-    rotate: "1.5deg",
-    type: "text",
-  },
-  {
-    id: 3,
-    text: "First proper rain after weeks of dry weather. Sat by the window with tea and did absolutely nothing for 20 minutes.",
-    city: "London",
-    country: "UK",
-    flag: "🇬🇧",
-    time: "5 hours ago",
-    color: "#E8F4FD",
-    rotate: "-1deg",
-    type: "text",
-  },
-  {
-    id: 4,
-    text: "My 7-year-old told me I was her best friend today. Unprompted. Just like that.",
-    city: "Toronto",
-    country: "Canada",
-    flag: "🇨🇦",
-    time: "7 hours ago",
-    color: "#F0FDF4",
-    rotate: "2.5deg",
-    type: "text",
-  },
-  {
-    id: 5,
-    text: "Found a $20 note in a jacket I haven't worn since winter. Bought myself a really good lunch.",
-    city: "Melbourne",
-    country: "Australia",
-    flag: "🇦🇺",
-    time: "9 hours ago",
-    color: "#FEF3C7",
-    rotate: "-1.5deg",
-    type: "text",
-  },
-  {
-    id: 6,
-    text: "A stranger complimented my shoes. We ended up talking for 15 minutes. Never got her name.",
-    city: "New York",
-    country: "USA",
-    flag: "🇺🇸",
-    time: "11 hours ago",
-    color: "#FDE8D8",
-    rotate: "1deg",
-    type: "text",
-  },
-  {
-    id: 7,
-    text: "My cat sat on my lap for the entire time I was working. Didn't move once. Just purring.",
-    city: "Paris",
-    country: "France",
-    flag: "🇫🇷",
-    time: "13 hours ago",
-    color: "#F5F0FF",
-    rotate: "-2.5deg",
-    type: "text",
-  },
-  {
-    id: 8,
-    text: "The exact song I needed came on shuffle at the exact moment I needed it. Some things can't be explained.",
-    city: "São Paulo",
-    country: "Brazil",
-    flag: "🇧🇷",
-    time: "14 hours ago",
-    color: "#E8F4FD",
-    rotate: "2deg",
-    type: "text",
-  },
-  {
-    id: 9,
-    text: "Reconnected with a university friend after 6 years. We picked up exactly where we left off. Not a single awkward moment.",
-    city: "Nairobi",
-    country: "Kenya",
-    flag: "🇰🇪",
-    time: "16 hours ago",
-    color: "#F0FDF4",
-    rotate: "-1deg",
-    type: "text",
-  },
-  {
-    id: 10,
-    text: "Woke up before my alarm, felt rested, and the sky was that specific shade of pink that only lasts two minutes.",
-    city: "Kyoto",
-    country: "Japan",
-    flag: "🇯🇵",
-    time: "18 hours ago",
-    color: "#FDE8D8",
-    rotate: "1.5deg",
-    type: "text",
-  },
-  {
-    id: 11,
-    text: "Got a handwritten thank-you note in the post. In 2025. I've kept it on my desk.",
-    city: "Amsterdam",
-    country: "Netherlands",
-    flag: "🇳🇱",
-    time: "20 hours ago",
-    color: "#FEF3C7",
-    rotate: "-2deg",
-    type: "text",
-  },
-  {
-    id: 12,
-    text: "Made bread for the first time. It wasn't perfect. I ate the whole loaf.",
-    city: "Cape Town",
-    country: "South Africa",
-    flag: "🇿🇦",
-    time: "22 hours ago",
-    color: "#F5F0FF",
-    rotate: "2deg",
-    type: "text",
-  },
-];
+const NOTE_COLORS = ["#FEF3C7", "#FDE8D8", "#E8F4FD", "#F0FDF4", "#F5F0FF"];
+const NOTE_ROTATIONS = ["-2deg", "1.5deg", "-1deg", "2.5deg", "-1.5deg", "1deg", "-2.5deg", "2deg"];
 
-function StickyNote({ note }: { note: (typeof SEED_NOTES)[0] }) {
+type Note = {
+  id: string;
+  text: string;
+  city: string | null;
+  country: string | null;
+  flag: string | null;
+  created_at: string;
+  color?: string;
+  rotate?: string;
+};
+
+function timeAgo(dateStr: string) {
+  const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
+  if (diff < 60) return "just now";
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  return `${Math.floor(diff / 86400)}d ago`;
+}
+
+function StickyNote({ note }: { note: Note }) {
   return (
     <div
       className="sticky-note"
@@ -148,61 +36,120 @@ function StickyNote({ note }: { note: (typeof SEED_NOTES)[0] }) {
     >
       <p className="note-text">{note.text}</p>
       <div className="note-footer">
-        {note.city && (
+        {note.country && (
           <span className="note-city">
-            {note.flag} {note.country}, {note.city}
+            {note.flag} {note.country}{note.city ? `, ${note.city}` : ""}
           </span>
         )}
-        <span className="note-time">{note.time}</span>
+        <span className="note-time">{timeAgo(note.created_at)}</span>
       </div>
     </div>
   );
 }
 
-function PostModal({ onClose }: { onClose: () => void }) {
+function PostModal({ onClose, onPosted }: { onClose: () => void; onPosted: () => void }) {
   const [text, setText] = useState("");
+  const [city, setCity] = useState("");
+  const [posting, setPosting] = useState(false);
+  const [done, setDone] = useState(false);
   const maxChars = 220;
+
+  async function handlePost() {
+    if (!text.trim()) return;
+    setPosting(true);
+    const { error } = await supabase.from("notes").insert({
+      text: text.trim(),
+      city: city.trim() || null,
+      country: null,
+      flag: null,
+    });
+    setPosting(false);
+    if (!error) {
+      setDone(true);
+      setTimeout(() => {
+        onPosted();
+        onClose();
+      }, 1500);
+    } else {
+      alert("Something went wrong. Please try again.");
+    }
+  }
 
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <h2 className="modal-title">Share a small joy</h2>
-        <p className="modal-subtitle">
-          Anonymous. No account needed. Just something that made your day.
-        </p>
-        <textarea
-          className="modal-textarea"
-          placeholder="Today I noticed..."
-          value={text}
-          onChange={(e) => setText(e.target.value.slice(0, maxChars))}
-          rows={4}
-          autoFocus
-        />
-        <div className="modal-char-count">
-          {text.length}/{maxChars}
-        </div>
-        <input
-          className="modal-city-input"
-          placeholder="Your city (optional)"
-        />
-        <div className="modal-actions">
-          <button className="btn-cancel" onClick={onClose}>
-            Cancel
-          </button>
-          <button className="btn-post" disabled={text.trim().length === 0}>
-            Post to the wall
-          </button>
-        </div>
-        <p className="modal-disclaimer">
-          No names stored. No accounts. Posts are reviewed before appearing.
-        </p>
+        {done ? (
+          <div className="modal-success">
+            <p className="modal-success-icon">🌿</p>
+            <p className="modal-success-text">Your joy is on the wall.</p>
+          </div>
+        ) : (
+          <>
+            <h2 className="modal-title">Share a small joy</h2>
+            <p className="modal-subtitle">
+              Anonymous. No account needed. Just something that made your day.
+            </p>
+            <textarea
+              className="modal-textarea"
+              placeholder="Today I noticed..."
+              value={text}
+              onChange={(e) => setText(e.target.value.slice(0, maxChars))}
+              rows={4}
+              autoFocus
+            />
+            <div className="modal-char-count">{text.length}/{maxChars}</div>
+            <input
+              className="modal-city-input"
+              placeholder="Your city (optional)"
+              value={city}
+              onChange={(e) => setCity(e.target.value)}
+            />
+            <div className="modal-actions">
+              <button className="btn-cancel" onClick={onClose}>Cancel</button>
+              <button
+                className="btn-post"
+                disabled={text.trim().length === 0 || posting}
+                onClick={handlePost}
+              >
+                {posting ? "Posting..." : "Post to the wall"}
+              </button>
+            </div>
+            <p className="modal-disclaimer">
+              No names stored. No accounts. Posts may take a few minutes to appear.
+            </p>
+          </>
+        )}
       </div>
     </div>
   );
 }
 
 export default function Home() {
+  const [notes, setNotes] = useState<Note[]>([]);
   const [showModal, setShowModal] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  async function loadNotes() {
+    const { data } = await supabase
+      .from("notes")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(100);
+
+    if (data) {
+      const enriched = data.map((note, i) => ({
+        ...note,
+        color: NOTE_COLORS[i % NOTE_COLORS.length],
+        rotate: NOTE_ROTATIONS[i % NOTE_ROTATIONS.length],
+      }));
+      setNotes(enriched);
+    }
+    setLoading(false);
+  }
+
+  useEffect(() => {
+    loadNotes();
+  }, []);
 
   return (
     <>
@@ -213,7 +160,7 @@ export default function Home() {
 
         body {
           background-color: #FAF6EF;
-          background-image: 
+          background-image:
             radial-gradient(circle at 20% 50%, rgba(254,243,199,0.4) 0%, transparent 50%),
             radial-gradient(circle at 80% 20%, rgba(253,232,216,0.3) 0%, transparent 40%);
           min-height: 100vh;
@@ -272,6 +219,17 @@ export default function Home() {
           column-gap: 20px;
         }
 
+        .wall-empty {
+          max-width: 1200px;
+          margin: 0 auto;
+          padding: 80px 24px;
+          text-align: center;
+          font-family: 'DM Sans', sans-serif;
+          color: #B8957E;
+          font-weight: 300;
+          font-size: 0.95rem;
+        }
+
         .sticky-note {
           break-inside: avoid;
           display: inline-block;
@@ -279,7 +237,7 @@ export default function Home() {
           padding: 22px 20px 16px;
           margin-bottom: 20px;
           border-radius: 2px;
-          box-shadow: 
+          box-shadow:
             2px 3px 8px rgba(0,0,0,0.08),
             0 1px 2px rgba(0,0,0,0.04);
           transition: transform 0.2s, box-shadow 0.2s;
@@ -367,6 +325,23 @@ export default function Home() {
           box-shadow: 0 20px 60px rgba(0,0,0,0.2);
         }
 
+        .modal-success {
+          text-align: center;
+          padding: 20px 0;
+        }
+
+        .modal-success-icon {
+          font-size: 2.5rem;
+          margin-bottom: 12px;
+        }
+
+        .modal-success-text {
+          font-family: 'Playfair Display', serif;
+          font-style: italic;
+          font-size: 1.3rem;
+          color: #2C1810;
+        }
+
         .modal-title {
           font-family: 'Playfair Display', serif;
           font-style: italic;
@@ -398,9 +373,7 @@ export default function Home() {
           line-height: 1.6;
           transition: border-color 0.2s;
         }
-        .modal-textarea:focus {
-          border-color: rgba(44,24,16,0.3);
-        }
+        .modal-textarea:focus { border-color: rgba(44,24,16,0.3); }
         .modal-textarea::placeholder { color: #C4A99A; }
 
         .modal-char-count {
@@ -497,17 +470,28 @@ export default function Home() {
         </button>
       </header>
 
-      <main className="wall">
-        {SEED_NOTES.map((note) => (
-          <StickyNote key={note.id} note={note} />
-        ))}
+      <main>
+        {loading ? (
+          <div className="wall-empty">Loading the wall...</div>
+        ) : notes.length === 0 ? (
+          <div className="wall-empty">No notes yet. Be the first to share a small joy.</div>
+        ) : (
+          <div className="wall">
+            {notes.map((note) => (
+              <StickyNote key={note.id} note={note} />
+            ))}
+          </div>
+        )}
       </main>
 
-      <footer>
-        Small Joys · Anonymous gratitude, shared with strangers
-      </footer>
+      <footer>Small Joys · Anonymous gratitude, shared with strangers</footer>
 
-      {showModal && <PostModal onClose={() => setShowModal(false)} />}
+      {showModal && (
+        <PostModal
+          onClose={() => setShowModal(false)}
+          onPosted={loadNotes}
+        />
+      )}
     </>
   );
 }
