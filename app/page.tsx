@@ -403,7 +403,32 @@ export default function Home() {
         )}
       </main>
 
-      <footer>Small Joys · Anonymous gratitude, shared with strangers · <a href="mailto:hello@smalljoyswall.com" style={{color: "#C4A99A", textDecoration: "none"}}>Send feedback</a></footer>
+     <footer>
+      <a 
+        href="mailto:hello@smalljoyswall.com" 
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: "6px",
+          color: "#8B6F5E",
+          textDecoration: "none",
+          fontWeight: 500,
+          border: "1px solid rgba(139,111,94,0.3)",
+          borderRadius: "100px",
+          padding: "8px 18px",
+          fontSize: "0.8rem",
+          marginBottom: "12px"
+        }}
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
+          <rect x="2" y="4" width="20" height="16" rx="2"/>
+          <path d="m2 7 10 7 10-7"/>
+        </svg>
+        Send feedback
+      </a>
+      <br />
+      <span>Small Joys · Anonymous gratitude, shared with strangers</span>
+    </footer>
 
       {showModal && (
         <PostModal
