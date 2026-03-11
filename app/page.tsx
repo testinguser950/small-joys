@@ -250,7 +250,12 @@ function PostModal({ onClose, onPosted, prefillText }: { onClose: () => void; on
   setPosting(false);
 
   if (data.error === "rate_limited") {
-    alert("You've already shared a joy recently. Come back in a little while — we'll be here.");
+    alert("You have already shared a joy in the last hour. Come back in a little while — we will be here.");
+    return;
+  }
+
+  if (data.error === "flagged") {
+    alert("That one didn't make it through. Small Joys is a warm space — please keep it kind.");
     return;
   }
 
