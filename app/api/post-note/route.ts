@@ -27,6 +27,7 @@ async function moderateWithOpenAI(text: string): Promise<boolean> {
 }
 
 export async function POST(req: NextRequest) {
+  console.log("API route hit");
   try {
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -75,30 +76,21 @@ export async function POST(req: NextRequest) {
     }
 
     // Save
-    const { error } = await supabase.from("notes").insert({
-      text: text.trim(),
-      country: country || null,
-      country_code: country_code || null,
-      flag: null,
-      ip_address: ip,
-    });
-
-    // Photo upload
     const { error: insertError } = await supabase.from("notes").insert({
-      text: text.trim(),
-      country: country || null,
-      country_code: country_code || null,
-      flag: null,
-      ip_address: ip,
-      photo_url: photo_url || null,
-    });
+        text: text.trim(),
+        country: country || null,
+        country_code: country_code || null,
+        flag: null,
+        ip_address: ip,
+        photo_url: photo_url || null,
+      });
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
+      if (insertError) {
+        return NextResponse.json({ error: insertError.message }, { status: 500 });
+      }
 
-    return NextResponse.json({ success: true });
-  } catch (e) {
-    return NextResponse.json({ error: String(e) }, { status: 500 });
-  }
-}
+          return NextResponse.json({ success: true });
+        } catch (e) {
+          return NextResponse.json({ error: String(e) }, { status: 500 });
+        }
+      }

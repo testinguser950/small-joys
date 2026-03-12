@@ -206,6 +206,7 @@ function PostModal({ onClose, onPosted, prefillText }: { onClose: () => void; on
   const [posting, setPosting] = useState(false);
   const [done, setDone] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const hasPosted = useRef(false);
   const maxChars = 280;
 
   function handlePhotoSelect(e: React.ChangeEvent<HTMLInputElement>) {
@@ -232,7 +233,10 @@ function PostModal({ onClose, onPosted, prefillText }: { onClose: () => void; on
   }
 
   async function handlePost() {
+    console.log("handlePost called");
     if (!text.trim()) return;
+    if (hasPosted.current) return;
+    hasPosted.current = true;
     setPosting(true);
 
     let photoUrl: string | null = null;
@@ -293,7 +297,7 @@ function PostModal({ onClose, onPosted, prefillText }: { onClose: () => void; on
                 {posting ? (photo ? "Uploading..." : "Posting...") : "Post to the wall"}
               </button>
             </div>
-            <p className="modal-disclaimer">No names stored. No accounts. Posts may take a few minutes to appear.</p>
+            <p className="modal-disclaimer">No names stored. No accounts. Posts may take a few seconds to appear.</p>
           </>
         )}
       </div>
