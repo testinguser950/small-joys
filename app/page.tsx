@@ -538,7 +538,7 @@ export default function Home() {
           Send feedback
         </a>
         <br />
-        <span>Small Joys · Anonymous gratitude, shared with strangers</span>
+        <span>Anonymous gratitude, shared with strangers</span>
       </footer>
 
       {showModal && (
