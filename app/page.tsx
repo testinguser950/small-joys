@@ -455,8 +455,8 @@ export default function Home() {
 
         .polaroid-note { display: inline-block; width: 100%; background: #fff; padding: 10px 10px 36px; box-shadow: 2px 3px 12px rgba(0,0,0,0.12), 0 1px 3px rgba(0,0,0,0.06); transition: transform 0.2s, box-shadow 0.2s; cursor: default; position: relative; }
         .polaroid-note:hover { transform: rotate(0deg) scale(1.02) !important; box-shadow: 4px 8px 24px rgba(0,0,0,0.16); z-index: 10; }
-        .polaroid-img-wrap { width: 100%; overflow: hidden; }
-        .polaroid-img { width: 100%; display: block; filter: saturate(0.85) contrast(1.05); }
+        .polaroid-img-wrap { width: 100%; overflow: hidden; max-height: 400px;}
+        .polaroid-img { width: 100%; display: block; filter: saturate(0.85) contrast(1.05); object-fit: cover; max-height: 400px; }
         .polaroid-caption { padding: 10px 4px 0; }
         .polaroid-text { font-family: 'Caveat', cursive; font-size: 1.1rem; line-height: 1.5; color: #2C1810; margin-bottom: 10px; }
 
@@ -476,7 +476,7 @@ export default function Home() {
         .photo-upload-area:hover { background: #FFF3E6; }
         .photo-upload-label { font-family: 'DM Sans', sans-serif; font-size: 0.875rem; color: #8B6F5E; }
         .photo-preview-wrap { position: relative; margin-bottom: 12px; }
-        .photo-preview-img { width: 100%; max-height: 200px; object-fit: cover; border-radius: 4px; display: block; }
+        .photo-preview-img { width: 100%; max-height: 400px; object-fit: contain; border-radius: 4px; display: block; }
         .photo-remove-btn { margin-top: 8px; background: transparent; border: none; font-family: 'DM Sans', sans-serif; font-size: 0.8rem; color: #B8957E; cursor: pointer; padding: 0; }
         .photo-remove-btn:hover { color: #8B6F5E; }
         .country-input-wrap { position: relative; margin-bottom: 24px; }
