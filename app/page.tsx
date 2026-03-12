@@ -297,7 +297,7 @@ function PostModal({ onClose, onPosted, prefillText }: { onClose: () => void; on
                 {posting ? (photo ? "Uploading..." : "Posting...") : "Post to the wall"}
               </button>
             </div>
-            <p className="modal-disclaimer">No names stored. No accounts. Posts may take a few seconds to appear.</p>
+            <p className="modal-disclaimer">Posts may take a few seconds to appear.</p>
           </>
         )}
       </div>
