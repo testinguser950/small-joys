@@ -339,12 +339,12 @@ export default function Home() {
         .nav {
           display: flex;
           align-items: center;
-          justify-content: space-between;
+          justify-content: center;
           padding: 20px 40px;
           border-bottom: 1px solid rgba(0,0,0,0.06);
         }
         .nav-wordmark {
-          font-family: 'Playfair Display', serif;
+        font-family: 'Playfair Display', serif;
           font-size: 1.1rem;
           color: #2C1810;
           font-weight: 400;
@@ -511,11 +511,6 @@ export default function Home() {
       {/* NAV */}
       <nav className="nav">
         <span className="nav-wordmark">small joys</span>
-        <div className="nav-counter">
-          <span className="nav-counter-dot" />
-          {notes.length} notes from strangers
-        </div>
-        <button className="nav-btn" onClick={openModal}>+ add yours</button>
       </nav>
 
       {/* HERO */}
@@ -524,10 +519,19 @@ export default function Home() {
           A wall of <span className="hero-title-accent">small things</span><br />
           people are grateful for
         </h1>
+
         <p className="hero-sub">
           Anonymous. No likes. No accounts.<br />
           Just small human moments, shared with the world.
         </p>
+
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "12px", marginBottom: "28px" }}>
+          <button className="nav-btn" onClick={openModal}>+ add yours</button>
+          <div className="nav-counter">
+            <span className="nav-counter-dot" />
+            {notes.length} notes from strangers
+          </div>
+        </div>
 
         {/* Share icons */}
         <div className="share-wrap">
