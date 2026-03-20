@@ -1,0 +1,162 @@
+"use client";
+
+import { useState, useEffect, useRef } from "react";
+import imageCompression from "browser-image-compression";
+import Masonry from "react-masonry-css";
+import { supabase } from "@/lib/supabase";
+
+const NOTE_COLORS = ["#FEF3C7", "#FDE8D8", "#E8F4FD", "#F0FDF4", "#F5F0FF"];
+const NOTE_ROTATIONS = ["-2deg", "1.5deg", "-1deg", "2.5deg", "-1.5deg", "1deg", "-2.5deg", "2deg"];
+
+const COUNTRIES = [
+  { name: "Afghanistan", code: "af" }, { name: "Albania", code: "al" }, { name: "Algeria", code: "dz" },
+  { name: "Argentina", code: "ar" }, { name: "Australia", code: "au" }, { name: "Austria", code: "at" },
+  { name: "Bangladesh", code: "bd" }, { name: "Belgium", code: "be" }, { name: "Brazil", code: "br" },
+  { name: "Cambodia", code: "kh" }, { name: "Canada", code: "ca" }, { name: "Chile", code: "cl" },
+  { name: "China", code: "cn" }, { name: "Colombia", code: "co" }, { name: "Croatia", code: "hr" },
+  { name: "Czech Republic", code: "cz" }, { name: "Denmark", code: "dk" }, { name: "Egypt", code: "eg" },
+  { name: "Ethiopia", code: "et" }, { name: "Finland", code: "fi" }, { name: "France", code: "fr" },
+  { name: "Germany", code: "de" }, { name: "Ghana", code: "gh" }, { name: "Greece", code: "gr" },
+  { name: "Hong Kong", code: "hk" }, { name: "Hungary", code: "hu" }, { name: "India", code: "in" },
+  { name: "Indonesia", code: "id" }, { name: "Iran", code: "ir" }, { name: "Iraq", code: "iq" },
+  { name: "Ireland", code: "ie" }, { name: "Israel", code: "il" }, { name: "Italy", code: "it" },
+  { name: "Japan", code: "jp" }, { name: "Jordan", code: "jo" }, { name: "Kenya", code: "ke" },
+  { name: "Malaysia", code: "my" }, { name: "Mexico", code: "mx" }, { name: "Morocco", code: "ma" },
+  { name: "Myanmar", code: "mm" }, { name: "Nepal", code: "np" }, { name: "Netherlands", code: "nl" },
+  { name: "New Zealand", code: "nz" }, { name: "Nigeria", code: "ng" }, { name: "Norway", code: "no" },
+  { name: "Pakistan", code: "pk" }, { name: "Peru", code: "pe" }, { name: "Philippines", code: "ph" },
+  { name: "Poland", code: "pl" }, { name: "Portugal", code: "pt" }, { name: "Romania", code: "ro" },
+  { name: "Russia", code: "ru" }, { name: "Saudi Arabia", code: "sa" }, { name: "Singapore", code: "sg" },
+  { name: "South Africa", code: "za" }, { name: "South Korea", code: "kr" }, { name: "Spain", code: "es" },
+  { name: "Sri Lanka", code: "lk" }, { name: "Sweden", code: "se" }, { name: "Switzerland", code: "ch" },
+  { name: "Taiwan", code: "tw" }, { name: "Tanzania", code: "tz" }, { name: "Thailand", code: "th" },
+  { name: "Turkey", code: "tr" }, { name: "Uganda", code: "ug" }, { name: "Ukraine", code: "ua" },
+  { name: "United Arab Emirates", code: "ae" }, { name: "United Kingdom", code: "gb" },
+  { name: "United States", code: "us" }, { name: "Vietnam", code: "vn" }, { name: "Zimbabwe", code: "zw" },
+];
+
+const SITE_URL = "https://smalljoyswall.com";
+
+type Note = {
+  id: string;
+  text: string;
+  city: string | null;
+  country: string | null;
+  country_code: string | null;
+  flag: string | null;
+  photo_url: string | null;
+  created_at: string;
+  color?: string;
+  rotate?: string;
+};
+
+function timeAgo(dateStr: string) {
+  const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
+  if (diff < 60) return "just now";
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  return `${Math.floor(diff / 86400)}d ago`;
+}
+
+function Lightbox({ note, onClose }: { note: Note; onClose: () => void }) {
+  useEffect(() => {
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    document.addEventListener("keydown", handleKey);
+    return () => document.removeEventListener("keydown", handleKey);
+  }, [onClose]);
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed", inset: 0, background: "rgba(44,24,16,0.85)",
+        backdropFilter: "blur(6px)", display: "flex", alignItems: "center",
+        justifyContent: "center", zIndex: 200, padding: "20px",
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          background: "#fff", padding: "12px 12px 40px", maxWidth: "560px",
+          width: "100%", boxShadow: "0 24px 80px rgba(0,0,0,0.3)", position: "relative",
+        }}
+      >
+        <img src={note.photo_url!} alt="A small joy" style={{ width: "100%", display: "block", filter: "saturate(0.85) contrast(1.05)" }} />
+        <div style={{ padding: "16px 8px 0" }}>
+          <p style={{ fontFamily: "'Caveat', cursive", fontSize: "1.3rem", color: "#2C1810", lineHeight: 1.5, marginBottom: "12px" }}>{note.text}</p>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            {note.country && (
+              <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.75rem", color: "#8B6F5E", display: "flex", alignItems: "center", gap: "6px" }}>
+                {note.country_code && <img src={`https://flagcdn.com/${note.country_code}.svg`} alt={note.country} style={{ width: "16px", height: "12px" }} />}
+                {note.country}
+              </span>
+            )}
+            <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.72rem", color: "#B8957E" }}>{timeAgo(note.created_at)}</span>
+          </div>
+        </div>
+        <button onClick={onClose} style={{ position: "absolute", top: "16px", right: "16px", background: "rgba(255,255,255,0.9)", border: "none", borderRadius: "50%", width: "32px", height: "32px", cursor: "pointer", fontSize: "1rem", color: "#8B6F5E", display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
+      </div>
+    </div>
+  );
+}
+
+function StickyNote({ note, onPhotoClick }: { note: Note; onPhotoClick?: () => void }) {
+  if (note.photo_url) {
+    return (
+      <div className="polaroid-note" style={{ transform: `rotate(${note.rotate})` }}>
+        <div className="polaroid-img-wrap" onClick={onPhotoClick} style={{ cursor: onPhotoClick ? "zoom-in" : "default" }}>
+          <img src={note.photo_url} alt="A small joy" className="polaroid-img" />
+        </div>
+        <div className="polaroid-caption">
+          <p className="polaroid-text">{note.text}</p>
+          <div className="note-footer">
+            {note.country && (
+              <span className="note-city">
+                {note.country_code && (
+                  <img src={`https://flagcdn.com/${note.country_code?.toLowerCase()}.svg`} alt={note.country} style={{ display: "inline", verticalAlign: "middle", marginRight: "4px", marginTop: "-2px", width: "16px", height: "12px" }} />
+                )}
+                {note.country}
+              </span>
+            )}
+            <span className="note-time">{timeAgo(note.created_at)}</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="sticky-note" style={{ backgroundColor: note.color, transform: `rotate(${note.rotate})` }}>
+      <p className="note-text">{note.text}</p>
+      <div className="note-footer">
+        {note.country && (
+          <span className="note-city">
+            {note.country_code && (
+              <img src={`https://flagcdn.com/${note.country_code?.toLowerCase()}.svg`} alt={note.country} style={{ display: "inline", verticalAlign: "middle", marginRight: "4px", marginTop: "-2px", width: "16px", height: "12px" }} />
+            )}
+            {note.country}
+          </span>
+        )}
+        <span className="note-time">{timeAgo(note.created_at)}</span>
+      </div>
+    </div>
+  );
+}
+
+function CountryInput({ onSelect }: { onSelect: (name: string, code: string) => void }) {
+  const [query, setQuery] = useState("");
+  const [open, setOpen] = useState(false);
+  const [selected, setSelected] = useState<{ name: string; code: string } | null>(null);
+  const ref = useRef<HTMLDivElement>(null);
+
+  const filtered = query.length === 0 ? [] : COUNTRIES.filter((c) =>
+    c.name.toLowerCase().startsWith(query.toLowerCase())
+  ).slice(0, 6);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.ad

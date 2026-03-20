@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import imageCompression from "browser-image-compression";
 import Masonry from "react-masonry-css";
 import { supabase } from "@/lib/supabase";
 
@@ -57,7 +58,75 @@ function timeAgo(dateStr: string) {
   return `${Math.floor(diff / 86400)}d ago`;
 }
 
-function StickyNote({ note }: { note: Note }) {
+function Lightbox({ note, onClose }: { note: Note; onClose: () => void }) {
+  useEffect(() => {
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    document.addEventListener("keydown", handleKey);
+    return () => document.removeEventListener("keydown", handleKey);
+  }, [onClose]);
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed", inset: 0, background: "rgba(44,24,16,0.85)",
+        backdropFilter: "blur(6px)", display: "flex", alignItems: "center",
+        justifyContent: "center", zIndex: 200, padding: "20px",
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          background: "#fff", padding: "12px 12px 40px", maxWidth: "560px",
+          width: "100%", boxShadow: "0 24px 80px rgba(0,0,0,0.3)", position: "relative",
+        }}
+      >
+        <img src={note.photo_url!} alt="A small joy" style={{ width: "100%", display: "block", filter: "saturate(0.85) contrast(1.05)" }} />
+        <div style={{ padding: "16px 8px 0" }}>
+          <p style={{ fontFamily: "'Caveat', cursive", fontSize: "1.3rem", color: "#2C1810", lineHeight: 1.5, marginBottom: "12px" }}>{note.text}</p>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            {note.country && (
+              <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.75rem", color: "#8B6F5E", display: "flex", alignItems: "center", gap: "6px" }}>
+                {note.country_code && <img src={`https://flagcdn.com/${note.country_code}.svg`} alt={note.country} style={{ width: "16px", height: "12px" }} />}
+                {note.country}
+              </span>
+            )}
+            <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.72rem", color: "#B8957E" }}>{timeAgo(note.created_at)}</span>
+          </div>
+        </div>
+        <button onClick={onClose} style={{ position: "absolute", top: "16px", right: "16px", background: "rgba(255,255,255,0.9)", border: "none", borderRadius: "50%", width: "32px", height: "32px", cursor: "pointer", fontSize: "1rem", color: "#8B6F5E", display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
+      </div>
+    </div>
+  );
+}
+
+function StickyNote({ note, onPhotoClick }: { note: Note; onPhotoClick?: () => void }) {
+  if (note.photo_url) {
+    return (
+      <div className="polaroid-note" style={{ transform: `rotate(${note.rotate})` }}>
+        <div className="polaroid-img-wrap" onClick={onPhotoClick} style={{ cursor: onPhotoClick ? "zoom-in" : "default" }}>
+          <img src={note.photo_url} alt="A small joy" className="polaroid-img" />
+        </div>
+        <div className="polaroid-caption">
+          <p className="polaroid-text">{note.text}</p>
+          <div className="note-footer">
+            {note.country && (
+              <span className="note-city">
+                {note.country_code && (
+                  <img src={`https://flagcdn.com/${note.country_code?.toLowerCase()}.svg`} alt={note.country} style={{ display: "inline", verticalAlign: "middle", marginRight: "4px", marginTop: "-2px", width: "16px", height: "12px" }} />
+                )}
+                {note.country}
+              </span>
+            )}
+            <span className="note-time">{timeAgo(note.created_at)}</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="sticky-note" style={{ backgroundColor: note.color, transform: `rotate(${note.rotate})` }}>
       <p className="note-text">{note.text}</p>
@@ -132,21 +201,54 @@ function PostModal({ onClose, onPosted, prefillText }: { onClose: () => void; on
   const [text, setText] = useState(prefillText || "");
   const [countryName, setCountryName] = useState("");
   const [countryCode, setCountryCode] = useState("");
+  const [photo, setPhoto] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [posting, setPosting] = useState(false);
   const [done, setDone] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const hasPosted = useRef(false);
   const maxChars = 280;
 
+  function handlePhotoSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) { alert("Photo must be under 10MB."); return; }
+    setPhoto(file);
+    setPhotoPreview(URL.createObjectURL(file));
+  }
+
+  function removePhoto() {
+    setPhoto(null);
+    setPhotoPreview(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
+  async function uploadPhoto(file: File): Promise<string | null> {
+    const compressed = await imageCompression(file, { maxSizeMB: 0.15, maxWidthOrHeight: 800, useWebWorker: true });
+    const filename = `${Date.now()}-${Math.random().toString(36).slice(2)}.jpg`;
+    const { error } = await supabase.storage.from("photos").upload(filename, compressed, { contentType: "image/jpeg", upsert: false });
+    if (error) return null;
+    const { data } = supabase.storage.from("photos").getPublicUrl(filename);
+    return data.publicUrl;
+  }
+
   async function handlePost() {
+    console.log("handlePost called");
     if (!text.trim()) return;
     if (hasPosted.current) return;
     hasPosted.current = true;
     setPosting(true);
 
+    let photoUrl: string | null = null;
+    if (photo) {
+      photoUrl = await uploadPhoto(photo);
+      if (!photoUrl) { alert("Photo upload failed. Please try again."); setPosting(false); return; }
+    }
+
     const res = await fetch("/api/post-note", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text: text.trim(), country: countryName || null, country_code: countryCode || null, photo_url: null }),
+      body: JSON.stringify({ text: text.trim(), country: countryName || null, country_code: countryCode || null, photo_url: photoUrl }),
     });
 
     const data = await res.json();
@@ -174,11 +276,25 @@ function PostModal({ onClose, onPosted, prefillText }: { onClose: () => void; on
             <p className="modal-subtitle">Anonymous. No account needed. Just something that made your day.</p>
             <textarea className="modal-textarea" placeholder="Today..." value={text} onChange={(e) => setText(e.target.value.slice(0, maxChars))} rows={4} autoFocus />
             <div className="modal-char-count">{text.length}/{maxChars}</div>
+            {photoPreview ? (
+              <div className="photo-preview-wrap">
+                <img src={photoPreview} alt="Preview" className="photo-preview-img" />
+                <button className="photo-remove-btn" onClick={removePhoto}>✕ Remove photo</button>
+              </div>
+            ) : (
+              <div className="photo-upload-area" onClick={() => fileInputRef.current?.click()}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="22" height="22" style={{ color: "#B8957E", flexShrink: 0 }}>
+                  <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/>
+                </svg>
+                <span className="photo-upload-label">Add a photo <span style={{ color: "#C4A99A" }}>(optional)</span></span>
+                <input ref={fileInputRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handlePhotoSelect} />
+              </div>
+            )}
             <CountryInput onSelect={(name, code) => { setCountryName(name); setCountryCode(code); }} />
             <div className="modal-actions">
               <button className="btn-cancel" onClick={onClose}>Cancel</button>
               <button className="btn-post" disabled={text.trim().length === 0 || posting} onClick={handlePost}>
-                {posting ? "Posting..." : "Post to the wall"}
+                {posting ? (photo ? "Uploading..." : "Posting...") : "Post to the wall"}
               </button>
             </div>
             <p className="modal-disclaimer">Posts may take a few seconds to appear.</p>
@@ -194,6 +310,7 @@ export default function Home() {
   const [showModal, setShowModal] = useState(false);
   const [prefillText, setPrefillText] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(true);
+  const [lightboxNote, setLightboxNote] = useState<Note | null>(null);
 
   async function loadNotes() {
     const { data } = await supabase.from("notes").select("*").order("created_at", { ascending: false }).limit(100);
@@ -231,7 +348,7 @@ export default function Home() {
           border-bottom: 1px solid rgba(0,0,0,0.06);
         }
         .nav-wordmark {
-          font-family: 'Playfair Display', serif;
+        font-family: 'Playfair Display', serif;
           font-size: 1.1rem;
           color: #2C1810;
           font-weight: 400;
@@ -300,6 +417,14 @@ export default function Home() {
           margin-bottom: 32px;
           line-height: 1.6;
         }
+        .hero-arriving {
+          font-family: 'Playfair Display', serif;
+          font-style: italic;
+          font-size: 0.9rem;
+          color: #B8957E;
+          margin-top: 28px;
+          letter-spacing: 0.03em;
+        }
 
         /* ── SHARE BAR ── */
         .share-wrap {
@@ -332,6 +457,13 @@ export default function Home() {
         .note-city { font-family: 'DM Sans', sans-serif; font-size: 0.7rem; font-weight: 500; color: #8B6F5E; letter-spacing: 0.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 65%; }
         .note-time { font-family: 'DM Sans', sans-serif; font-size: 0.68rem; color: #B8957E; font-weight: 300; white-space: nowrap; }
 
+        .polaroid-note { display: inline-block; width: 100%; background: #fff; padding: 10px 10px 36px; box-shadow: 2px 3px 12px rgba(0,0,0,0.12), 0 1px 3px rgba(0,0,0,0.06); transition: transform 0.2s, box-shadow 0.2s; cursor: default; position: relative; }
+        .polaroid-note:hover { transform: rotate(0deg) scale(1.02) !important; box-shadow: 4px 8px 24px rgba(0,0,0,0.16); z-index: 10; }
+        .polaroid-img-wrap { width: 100%; overflow: hidden; max-height: 400px;}
+        .polaroid-img { width: 100%; display: block; filter: saturate(0.85) contrast(1.05); object-fit: cover; max-height: 400px; }
+        .polaroid-caption { padding: 10px 4px 0; }
+        .polaroid-text { font-family: 'Caveat', cursive; font-size: 1.1rem; line-height: 1.5; color: #2C1810; margin-bottom: 10px; }
+
         /* ── MODAL ── */
         .modal-overlay { position: fixed; inset: 0; background: rgba(44,24,16,0.5); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 100; padding: 20px; }
         .modal { background: #FAF6EF; border-radius: 8px; padding: 36px 32px; width: 100%; max-width: 480px; box-shadow: 0 20px 60px rgba(0,0,0,0.2); max-height: 90vh; overflow-y: auto; }
@@ -344,6 +476,13 @@ export default function Home() {
         .modal-textarea:focus { border-color: rgba(44,24,16,0.3); }
         .modal-textarea::placeholder { color: #C4A99A; }
         .modal-char-count { text-align: right; font-size: 0.75rem; color: #B8957E; margin-top: 6px; margin-bottom: 12px; font-family: 'DM Sans', sans-serif; }
+        .photo-upload-area { display: flex; align-items: center; gap: 10px; padding: 12px 16px; background: #FFF8F0; border: 1px dashed rgba(44,24,16,0.2); border-radius: 6px; cursor: pointer; margin-bottom: 12px; transition: background 0.2s; }
+        .photo-upload-area:hover { background: #FFF3E6; }
+        .photo-upload-label { font-family: 'DM Sans', sans-serif; font-size: 0.875rem; color: #8B6F5E; }
+        .photo-preview-wrap { position: relative; margin-bottom: 12px; }
+        .photo-preview-img { width: 100%; max-height: 400px; object-fit: contain; border-radius: 4px; display: block; }
+        .photo-remove-btn { margin-top: 8px; background: transparent; border: none; font-family: 'DM Sans', sans-serif; font-size: 0.8rem; color: #B8957E; cursor: pointer; padding: 0; }
+        .photo-remove-btn:hover { color: #8B6F5E; }
         .country-input-wrap { position: relative; margin-bottom: 24px; }
         .country-input-inner { display: flex; align-items: center; background: #FFF8F0; border: 1px solid rgba(0,0,0,0.1); border-radius: 6px; padding: 0 16px; transition: border-color 0.2s; }
         .country-input-inner:focus-within { border-color: rgba(44,24,16,0.3); }
@@ -427,7 +566,7 @@ export default function Home() {
         ) : (
           <Masonry breakpointCols={{ default: 4, 1100: 3, 700: 2, 500: 1 }} className="masonry-grid" columnClassName="masonry-column">
             {notes.map((note) => (
-              <StickyNote key={note.id} note={note} />
+              <StickyNote key={note.id} note={note} onPhotoClick={note.photo_url ? () => setLightboxNote(note) : undefined} />
             ))}
           </Masonry>
         )}
@@ -445,6 +584,7 @@ export default function Home() {
       {showModal && (
         <PostModal onClose={() => { setShowModal(false); setPrefillText(undefined); }} onPosted={loadNotes} prefillText={prefillText} />
       )}
+      {lightboxNote && <Lightbox note={lightboxNote} onClose={() => setLightboxNote(null)} />}
     </>
   );
 }
