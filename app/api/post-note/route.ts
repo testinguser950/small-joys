@@ -15,6 +15,13 @@ async function moderateWithOpenAI(text: string): Promise<boolean> {
       },
       body: JSON.stringify({ input: text }),
     });
+
+    // Rate limited — fail open, leo-profanity is still running
+    if (res.status === 429) {
+      console.log("OpenAI rate limited, failing open");
+      return true;
+    }
+
     const data = await res.json();
 
     if (data.error) {
