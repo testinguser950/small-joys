@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import leoProfanity from "leo-profanity";
 
-const BLOCKED_WORDS = ["fuck", "shit", "nigger", "faggot", "cunt", "kill yourself", "kys"];
+// Add extra words leo-profanity might miss
+leoProfanity.add(["kys", "kill yourself", "self-harm"]);
 
 async function moderateWithOpenAI(text: string): Promise<boolean> {
   try {
@@ -14,24 +16,23 @@ async function moderateWithOpenAI(text: string): Promise<boolean> {
       body: JSON.stringify({ input: text }),
     });
     const data = await res.json();
-    // If API returns an error object, fail open
+
     if (data.error) {
-      console.log("OpenAI error, failing open:", data.error.message);
-      return true;
+      console.log("OpenAI error, failing closed:", data.error.message);
+      return false;
     }
     return data.results?.[0]?.flagged === false;
   } catch (e) {
-    console.log("OpenAI moderation error:", e);
-    return true;
+    console.log("OpenAI moderation exception, failing closed:", e);
+    return false;
   }
 }
 
 export async function POST(req: NextRequest) {
-  console.log("API route hit");
   try {
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
     const ip =
@@ -40,22 +41,19 @@ export async function POST(req: NextRequest) {
       "unknown";
 
     const body = await req.json();
-    const { text, country, country_code, photo_url } = body;
+    const { text, country, country_code } = body;
 
     if (!text?.trim()) {
       return NextResponse.json({ error: "No text provided" }, { status: 400 });
     }
 
-    // Keyword filter
-    const lower = text.toLowerCase();
-    const blocked = BLOCKED_WORDS.some((word) => lower.includes(word));
-    if (blocked) {
+    // Leo profanity filter
+    if (leoProfanity.check(text)) {
       return NextResponse.json({ error: "flagged" }, { status: 400 });
     }
 
-    // OpenAI moderation
+    // OpenAI moderation (fail-closed)
     const passed = await moderateWithOpenAI(text);
-    console.log("OpenAI passed:", passed);
     if (!passed) {
       return NextResponse.json({ error: "flagged" }, { status: 400 });
     }
@@ -75,22 +73,23 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Save
+    // Insert with approved: false
     const { error: insertError } = await supabase.from("notes").insert({
-        text: text.trim(),
-        country: country || null,
-        country_code: country_code || null,
-        flag: null,
-        ip_address: ip,
-        photo_url: photo_url || null,
-      });
+      text: text.trim(),
+      country: country || null,
+      country_code: country_code || null,
+      flag: null,
+      ip_address: ip,
+      photo_url: null,
+      approved: false,
+    });
 
-      if (insertError) {
-        return NextResponse.json({ error: insertError.message }, { status: 500 });
-      }
+    if (insertError) {
+      return NextResponse.json({ error: insertError.message }, { status: 500 });
+    }
 
-          return NextResponse.json({ success: true });
-        } catch (e) {
-          return NextResponse.json({ error: String(e) }, { status: 500 });
-        }
-      }
+    return NextResponse.json({ success: true });
+  } catch (e) {
+    return NextResponse.json({ error: String(e) }, { status: 500 });
+  }
+}
