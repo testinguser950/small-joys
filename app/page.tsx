@@ -85,6 +85,9 @@ function ReportButton({ noteId }: { noteId: string }) {
         <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/>
         <line x1="4" y1="22" x2="4" y2="15"/>
       </svg>
+      <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.65rem", fontWeight: 400 }}>
+      {reported ? "reported" : "report"}
+      </span>
     </button>
   );
 }
@@ -280,12 +283,11 @@ export default function Home() {
         .sticky-note { break-inside: avoid; display: inline-block; width: 100%; padding: 22px 20px 16px; border-radius: 2px; box-shadow: 2px 3px 8px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04); transition: transform 0.2s, box-shadow 0.2s; cursor: default; position: relative; }
         .sticky-note::before { content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: repeating-linear-gradient(transparent, transparent 27px, rgba(0,0,0,0.04) 28px); border-radius: 2px; pointer-events: none; }
         .sticky-note:hover { transform: rotate(0deg) scale(1.02) !important; box-shadow: 4px 8px 20px rgba(0,0,0,0.12); z-index: 10; position: relative; }
-        .sticky-note:hover .report-btn { opacity: 1; }
         .note-text { font-family: 'Caveat', cursive; font-size: 1.2rem; line-height: 1.6; color: #2C1810; margin-bottom: 16px; position: relative; z-index: 1; }
         .note-footer { display: flex; justify-content: space-between; align-items: center; gap: 8px; position: relative; z-index: 1; }
         .note-city { font-family: 'DM Sans', sans-serif; font-size: 0.7rem; font-weight: 500; color: #8B6F5E; letter-spacing: 0.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 65%; }
         .note-time { font-family: 'DM Sans', sans-serif; font-size: 0.68rem; color: #B8957E; font-weight: 300; white-space: nowrap; }
-        .report-btn { opacity: 0; background: none; border: none; cursor: pointer; padding: 2px; color: #C4A99A; display: flex; align-items: center; transition: opacity 0.2s, color 0.2s; }
+        .report-btn { background: none; border: none; cursor: pointer; padding: 2px; color: #C4A99A; display: flex; align-items: center; gap: 4px; transition: color 0.2s; }
         .report-btn:hover { color: #C4763A; }
         .modal-overlay { position: fixed; inset: 0; background: rgba(44,24,16,0.5); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 100; padding: 20px; }
         .modal { background: #FAF6EF; border-radius: 8px; padding: 36px 32px; width: 100%; max-width: 480px; box-shadow: 0 20px 60px rgba(0,0,0,0.2); max-height: 90vh; overflow-y: auto; }
