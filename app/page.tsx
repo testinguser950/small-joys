@@ -150,7 +150,7 @@ function CountryInput({ onSelect }: { onSelect: (name: string, code: string) => 
     <div ref={ref} className="country-input-wrap">
       <div className="country-input-inner">
         {selected && <img src={`https://flagcdn.com/${selected.code}.svg`} alt={selected.name} style={{ width: "16px", height: "12px", marginRight: "8px", flexShrink: 0 }} />}
-        <input className="modal-country-input" placeholder="Your country (optional)" value={query} onChange={handleChange} onFocus={() => query.length > 0 && setOpen(true)} autoComplete="off" />
+        <input className="modal-country-input" placeholder="Your country (required)" value={query} onChange={handleChange} onFocus={() => query.length > 0 && setOpen(true)} autoComplete="off" />
       </div>
       {open && filtered.length > 0 && (
         <ul className="country-dropdown">
@@ -215,7 +215,7 @@ function PostModal({ onClose, onPosted, prefillText }: { onClose: () => void; on
             <CountryInput onSelect={(name, code) => { setCountryName(name); setCountryCode(code); }} />
             <div className="modal-actions">
               <button className="btn-cancel" onClick={onClose}>Cancel</button>
-              <button className="btn-post" disabled={text.trim().length === 0 || posting} onClick={handlePost}>
+              <button className="btn-post" disabled={text.trim().length === 0 || !countryName || posting} onClick={handlePost}>
                 {posting ? "Posting..." : "Post to the wall"}
               </button>
             </div>
