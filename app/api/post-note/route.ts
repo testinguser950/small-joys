@@ -35,6 +35,57 @@ async function moderateWithOpenAI(text: string): Promise<boolean> {
   }
 }
 
+async function moderateWithGPT(text: string): Promise<boolean> {
+  try {
+    const res = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: "gpt-4o-mini",
+        max_tokens: 10,
+        messages: [
+          {
+            role: "system",
+            content: `You are a content moderator for "Small Joys" — a warm, anonymous gratitude wall where people share small things they're grateful for. 
+Reject content that is:
+- Political statements, protests, or opinions about governments, wars, or conflicts
+- Targeted hate or hostility toward any country, religion, ethnicity, or group
+- Divisive, inflammatory, or designed to provoke
+- Unrelated to personal gratitude or small joys
+
+Reply with only "PASS" or "FAIL". Nothing else.`
+          },
+          {
+            role: "user",
+            content: text
+          }
+        ]
+      }),
+    });
+
+    if (res.status === 429) {
+      console.log("GPT rate limited, failing open");
+      return true;
+    }
+
+    const data = await res.json();
+    if (data.error) {
+      console.log("GPT error, failing open:", data.error.message);
+      return true;
+    }
+
+    const verdict = data.choices?.[0]?.message?.content?.trim();
+    console.log("GPT verdict:", verdict);
+    return verdict === "PASS";
+  } catch (e) {
+    console.log("GPT moderation exception, failing open:", e);
+    return true;
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const supabase = createClient(
@@ -62,6 +113,12 @@ export async function POST(req: NextRequest) {
     // OpenAI moderation (fail-closed)
     const passed = await moderateWithOpenAI(text);
     if (!passed) {
+      return NextResponse.json({ error: "flagged" }, { status: 400 });
+    }
+
+    // GPT vibe check
+    const gptPassed = await moderateWithGPT(text);
+    if (!gptPassed) {
       return NextResponse.json({ error: "flagged" }, { status: 400 });
     }
 
