@@ -57,6 +57,38 @@ function timeAgo(dateStr: string) {
   return `${Math.floor(diff / 86400)}d ago`;
 }
 
+function ReportButton({ noteId }: { noteId: string }) {
+  const [reported, setReported] = useState(false);
+  const [reporting, setReporting] = useState(false);
+
+  async function handleReport(e: React.MouseEvent) {
+    e.stopPropagation();
+    if (reported || reporting) return;
+    setReporting(true);
+    await fetch("/api/report-note", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ noteId }),
+    });
+    setReporting(false);
+    setReported(true);
+  }
+
+  return (
+    <button
+      onClick={handleReport}
+      title={reported ? "Reported" : "Report this note"}
+      className="report-btn"
+      style={{ color: reported ? "#C4763A" : undefined }}
+    >
+      <svg viewBox="0 0 24 24" fill={reported ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" width="12" height="12">
+        <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/>
+        <line x1="4" y1="22" x2="4" y2="15"/>
+      </svg>
+    </button>
+  );
+}
+
 function StickyNote({ note }: { note: Note }) {
   return (
     <div className="sticky-note" style={{ backgroundColor: note.color, transform: `rotate(${note.rotate})` }}>
@@ -70,7 +102,10 @@ function StickyNote({ note }: { note: Note }) {
             {note.country}
           </span>
         )}
-        <span className="note-time">{timeAgo(note.created_at)}</span>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <span className="note-time">{timeAgo(note.created_at)}</span>
+          <ReportButton noteId={note.id} />
+        </div>
       </div>
     </div>
   );
@@ -196,7 +231,12 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
 
   async function loadNotes() {
-    const { data } = await supabase.from("notes").select("*").order("created_at", { ascending: false }).limit(100);
+    const { data } = await supabase
+      .from("notes")
+      .select("*")
+      .eq("approved", true)
+      .order("created_at", { ascending: false })
+      .limit(100);
     if (data) {
       setNotes(data.map((note, i) => ({ ...note, color: NOTE_COLORS[i % NOTE_COLORS.length], rotate: NOTE_ROTATIONS[i % NOTE_ROTATIONS.length] })));
     }
@@ -221,118 +261,32 @@ export default function Home() {
           min-height: 100vh;
           font-family: 'DM Sans', sans-serif;
         }
-
-        /* ── NAV ── */
-        .nav {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          padding: 20px 40px;
-          border-bottom: 1px solid rgba(0,0,0,0.06);
-        }
-        .nav-wordmark {
-          font-family: 'Playfair Display', serif;
-          font-size: 1.1rem;
-          color: #2C1810;
-          font-weight: 400;
-          letter-spacing: 0.01em;
-        }
-        .nav-counter {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          font-family: 'DM Sans', sans-serif;
-          font-size: 0.82rem;
-          color: #8B6F5E;
-          font-weight: 400;
-        }
-        .nav-counter-dot {
-          width: 7px;
-          height: 7px;
-          border-radius: 50%;
-          background: #7CB87C;
-          animation: pulse 2s infinite;
-          flex-shrink: 0;
-        }
-        @keyframes pulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.4; }
-        }
-        .nav-btn {
-          background: #2C1810;
-          color: #FAF6EF;
-          font-family: 'DM Sans', sans-serif;
-          font-size: 0.82rem;
-          font-weight: 500;
-          padding: 10px 22px;
-          border-radius: 100px;
-          border: none;
-          cursor: pointer;
-          letter-spacing: 0.02em;
-          transition: background 0.2s, transform 0.15s;
-        }
+        .nav { display: flex; align-items: center; justify-content: center; padding: 20px 40px; border-bottom: 1px solid rgba(0,0,0,0.06); }
+        .nav-wordmark { font-family: 'Playfair Display', serif; font-size: 1.1rem; color: #2C1810; font-weight: 400; letter-spacing: 0.01em; }
+        .nav-counter { display: flex; align-items: center; gap: 8px; font-family: 'DM Sans', sans-serif; font-size: 0.82rem; color: #8B6F5E; font-weight: 400; }
+        .nav-counter-dot { width: 7px; height: 7px; border-radius: 50%; background: #7CB87C; animation: pulse 2s infinite; flex-shrink: 0; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+        .nav-btn { background: #2C1810; color: #FAF6EF; font-family: 'DM Sans', sans-serif; font-size: 0.82rem; font-weight: 500; padding: 10px 22px; border-radius: 100px; border: none; cursor: pointer; letter-spacing: 0.02em; transition: background 0.2s, transform 0.15s; }
         .nav-btn:hover { background: #4A2820; transform: translateY(-1px); }
-
-        /* ── HERO ── */
-        .hero {
-          text-align: center;
-          padding: 30px 24px 56px;
-          border-bottom: 1px solid rgba(0,0,0,0.06);
-        }
-        .hero-title {
-          font-family: 'Playfair Display', serif;
-          font-style: italic;
-          font-size: clamp(2.2rem, 5vw, 3.8rem);
-          color: #2C1810;
-          line-height: 1.2;
-          margin-bottom: 20px;
-          font-weight: 400;
-        }
-        .hero-title-accent {
-          color: #C4763A;
-          font-style: italic;
-        }
-        .hero-sub {
-          font-family: 'DM Sans', sans-serif;
-          font-size: 0.95rem;
-          color: #8B6F5E;
-          font-weight: 300;
-          margin-bottom: 32px;
-          line-height: 1.6;
-        }
-
-        /* ── SHARE BAR ── */
-        .share-wrap {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 10px;
-          margin-top: 20px;
-        }
-        .share-label {
-          font-family: 'DM Sans', sans-serif;
-          font-size: 0.72rem;
-          font-weight: 500;
-          color: #B8957E;
-          text-transform: uppercase;
-          letter-spacing: 0.08em;
-        }
-
-        /* ── WALL ── */
+        .hero { text-align: center; padding: 30px 24px 56px; border-bottom: 1px solid rgba(0,0,0,0.06); }
+        .hero-title { font-family: 'Playfair Display', serif; font-style: italic; font-size: clamp(2.2rem, 5vw, 3.8rem); color: #2C1810; line-height: 1.2; margin-bottom: 20px; font-weight: 400; }
+        .hero-title-accent { color: #C4763A; font-style: italic; }
+        .hero-sub { font-family: 'DM Sans', sans-serif; font-size: 0.95rem; color: #8B6F5E; font-weight: 300; margin-bottom: 32px; line-height: 1.6; }
+        .share-wrap { display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 20px; }
+        .share-label { font-family: 'DM Sans', sans-serif; font-size: 0.72rem; font-weight: 500; color: #B8957E; text-transform: uppercase; letter-spacing: 0.08em; }
         .masonry-grid { display: flex; gap: 20px; max-width: 1200px; margin: 0 auto; padding: 48px 24px 80px; }
         .masonry-column { display: flex; flex-direction: column; gap: 20px; }
         .wall-empty { max-width: 1200px; margin: 0 auto; padding: 80px 24px; text-align: center; font-family: 'DM Sans', sans-serif; color: #B8957E; font-weight: 300; font-size: 0.95rem; }
-
-        /* ── NOTES ── */
         .sticky-note { break-inside: avoid; display: inline-block; width: 100%; padding: 22px 20px 16px; border-radius: 2px; box-shadow: 2px 3px 8px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04); transition: transform 0.2s, box-shadow 0.2s; cursor: default; position: relative; }
         .sticky-note::before { content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: repeating-linear-gradient(transparent, transparent 27px, rgba(0,0,0,0.04) 28px); border-radius: 2px; pointer-events: none; }
         .sticky-note:hover { transform: rotate(0deg) scale(1.02) !important; box-shadow: 4px 8px 20px rgba(0,0,0,0.12); z-index: 10; position: relative; }
+        .sticky-note:hover .report-btn { opacity: 1; }
         .note-text { font-family: 'Caveat', cursive; font-size: 1.2rem; line-height: 1.6; color: #2C1810; margin-bottom: 16px; position: relative; z-index: 1; }
         .note-footer { display: flex; justify-content: space-between; align-items: center; gap: 8px; position: relative; z-index: 1; }
         .note-city { font-family: 'DM Sans', sans-serif; font-size: 0.7rem; font-weight: 500; color: #8B6F5E; letter-spacing: 0.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 65%; }
         .note-time { font-family: 'DM Sans', sans-serif; font-size: 0.68rem; color: #B8957E; font-weight: 300; white-space: nowrap; }
-
-        /* ── MODAL ── */
+        .report-btn { opacity: 0; background: none; border: none; cursor: pointer; padding: 2px; color: #C4A99A; display: flex; align-items: center; transition: opacity 0.2s, color 0.2s; }
+        .report-btn:hover { color: #C4763A; }
         .modal-overlay { position: fixed; inset: 0; background: rgba(44,24,16,0.5); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 100; padding: 20px; }
         .modal { background: #FAF6EF; border-radius: 8px; padding: 36px 32px; width: 100%; max-width: 480px; box-shadow: 0 20px 60px rgba(0,0,0,0.2); max-height: 90vh; overflow-y: auto; }
         .modal-success { text-align: center; padding: 20px 0; }
@@ -359,10 +313,7 @@ export default function Home() {
         .btn-post:hover:not(:disabled) { background: #4A2820; }
         .btn-post:disabled { opacity: 0.4; cursor: not-allowed; }
         .modal-disclaimer { margin-top: 16px; font-family: 'DM Sans', sans-serif; font-size: 0.75rem; color: #B8957E; text-align: center; font-weight: 300; }
-
-        /* ── FOOTER ── */
         footer { text-align: center; padding: 32px; border-top: 1px solid rgba(0,0,0,0.06); font-family: 'DM Sans', sans-serif; font-size: 0.8rem; color: #C4A99A; font-weight: 300; }
-
         @media (max-width: 768px) {
           .nav { padding: 16px 20px; }
           .nav-counter { display: none; }
@@ -370,26 +321,23 @@ export default function Home() {
           .hero-title { font-size: 2rem; }
           .masonry-grid { padding: 32px 16px 60px; }
           .modal { padding: 28px 20px; }
+          .report-btn { opacity: 1; }
         }
       `}</style>
 
-      {/* NAV */}
       <nav className="nav">
         <span className="nav-wordmark">small joys</span>
       </nav>
 
-      {/* HERO */}
       <div className="hero">
         <h1 className="hero-title">
           A wall of <span className="hero-title-accent">small things</span><br />
           people are grateful for
         </h1>
-
         <p className="hero-sub">
           Anonymous. No likes. No accounts.<br />
           Just small human moments, shared with the world.
         </p>
-
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "12px", marginBottom: "28px" }}>
           <button className="nav-btn" onClick={openModal}>+ add yours</button>
           <div className="nav-counter">
@@ -397,8 +345,6 @@ export default function Home() {
             {notes.length} notes from strangers
           </div>
         </div>
-
-        {/* Share icons */}
         <div className="share-wrap">
           <span className="share-label">Spread the joy</span>
           <div style={{ display: "flex", gap: 8 }}>
@@ -418,7 +364,6 @@ export default function Home() {
         </div>
       </div>
 
-      {/* WALL */}
       <main style={{ overflow: "hidden" }}>
         {loading ? (
           <div className="wall-empty">Loading the wall...</div>

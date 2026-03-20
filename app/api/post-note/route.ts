@@ -88,7 +88,7 @@ export async function POST(req: NextRequest) {
       flag: null,
       ip_address: ip,
       photo_url: null,
-      approved: false,
+      approved: true, // ← change this
     });
 
     if (insertError) {
