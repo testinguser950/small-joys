@@ -346,6 +346,9 @@ export default function Home() {
             <span className="nav-counter-dot" />
             {notes.length} notes from strangers
           </div>
+          <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.72rem", color: "#C4A99A", fontWeight: 300, marginTop: "4px" }}>
+            See something unkind? Use the report flag on any note.
+          </p>
         </div>
         <div className="share-wrap">
           <span className="share-label">Spread the joy</span>
