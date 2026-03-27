@@ -99,30 +99,30 @@ export async function POST(req: NextRequest) {
       "unknown";
 
     const body = await req.json();
-    const { text, country, country_code } = body;
+    const { text, country, country_code, photo_url } = body;
 
-    if (!text?.trim()) {
-      return NextResponse.json({ error: "No text provided" }, { status: 400 });
+    if (!text?.trim() && !photo_url) {
+      return NextResponse.json({ error: "No content provided" }, { status: 400 });
     }
 
-    // Leo profanity filter
-    if (leoProfanity.check(text)) {
-      return NextResponse.json({ error: "flagged" }, { status: 400 });
+    // Only run text moderation if there's text
+    if (text?.trim()) {
+      if (leoProfanity.check(text)) {
+        return NextResponse.json({ error: "flagged" }, { status: 400 });
+      }
+
+      const passed = await moderateWithOpenAI(text);
+      if (!passed) {
+        return NextResponse.json({ error: "flagged" }, { status: 400 });
+      }
+
+      const gptPassed = await moderateWithGPT(text);
+      if (!gptPassed) {
+        return NextResponse.json({ error: "flagged" }, { status: 400 });
+      }
     }
 
-    // OpenAI moderation (fail-closed)
-    const passed = await moderateWithOpenAI(text);
-    if (!passed) {
-      return NextResponse.json({ error: "flagged" }, { status: 400 });
-    }
-
-    // GPT vibe check
-    const gptPassed = await moderateWithGPT(text);
-    if (!gptPassed) {
-      return NextResponse.json({ error: "flagged" }, { status: 400 });
-    }
-
-    // Rate limit — skip on localhost
+    // Rate limit
     const isLocalhost = req.headers.get("host")?.includes("localhost");
     if (!isLocalhost) {
       const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
@@ -137,19 +137,32 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Insert with approved: false
     const { error: insertError } = await supabase.from("notes").insert({
-      text: text.trim(),
+      text: text?.trim() || null,
       country: country || null,
       country_code: country_code || null,
       flag: null,
       ip_address: ip,
-      photo_url: null,
-      approved: true, // ← change this
+      photo_url: photo_url || null,
+      approved: photo_url ? false : true,
     });
 
     if (insertError) {
       return NextResponse.json({ error: insertError.message }, { status: 500 });
+    }
+
+    // Telegram notification for photo posts needing review
+    const token = process.env.TELEGRAM_BOT_TOKEN;
+    const chatId = process.env.TELEGRAM_CHAT_ID;
+    if (photo_url && token && chatId) {
+      await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: `📸 Photo note pending approval\n\n"${text?.trim() || "(no caption)"}"\n\n🌍 ${country || "Unknown"}\n\nPhoto: ${photo_url}`,
+        }),
+      });
     }
 
     return NextResponse.json({ success: true });
