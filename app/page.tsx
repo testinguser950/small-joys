@@ -263,6 +263,37 @@ function CommentsSection({ noteId }: { noteId: string }) {
 }
 
 function StickyNote({ note }: { note: Note }) {
+  if (note.photo_url) {
+    return (
+      <div className="sticky-note" style={{ backgroundColor: note.color, transform: `rotate(${note.rotate})`, padding: "12px 12px 16px" }}>
+        <div style={{ position: "relative", marginBottom: 10 }}>
+          <img
+            src={note.photo_url}
+            alt="small joy"
+            style={{ width: "100%", borderRadius: 2, display: "block", filter: "saturate(0.85) contrast(1.05)", maxHeight: 220, objectFit: "cover" }}
+          />
+          <div style={{ position: "absolute", inset: 0, background: "repeating-linear-gradient(transparent, transparent 27px, rgba(0,0,0,0.015) 28px)", pointerEvents: "none" }} />
+        </div>
+        {note.text && <p className="note-text" style={{ fontSize: "1.05rem", marginBottom: 10 }}>{note.text}</p>}
+        <div className="note-footer">
+          {note.country && (
+            <span className="note-city">
+              {note.country_code && (
+                <img src={`https://flagcdn.com/${note.country_code?.toLowerCase()}.svg`} alt={note.country} style={{ display: "inline", verticalAlign: "middle", marginRight: "4px", marginTop: "-2px", width: "16px", height: "12px" }} />
+              )}
+              {note.country}
+            </span>
+          )}
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <span className="note-time">{timeAgo(note.created_at)}</span>
+            <ReportButton noteId={note.id} />
+          </div>
+        </div>
+        <CommentsSection noteId={note.id} />
+      </div>
+    );
+  }
+
   return (
     <div className="sticky-note" style={{ backgroundColor: note.color, transform: `rotate(${note.rotate})` }}>
       <p className="note-text">{note.text}</p>
