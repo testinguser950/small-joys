@@ -102,7 +102,8 @@ function ReportButton({ noteId }: { noteId: string }) {
 }
 
 function CommentsSection({ noteId }: { noteId: string }) {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
+  const [showForm, setShowForm] = useState(false);
   const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(false);
   const [text, setText] = useState("");
@@ -122,13 +123,10 @@ function CommentsSection({ noteId }: { noteId: string }) {
       .eq("note_id", noteId)
       .eq("approved", true)
       .order("created_at", { ascending: true });
-    setComments(data || []);
+    const result = data || [];
+    setComments(result);
+    if (result.length > 0) setOpen(true);
     setLoading(false);
-  }
-
-  function handleToggle() {
-    if (!open) loadComments();
-    setOpen(!open);
   }
 
   async function handlePost() {
@@ -153,38 +151,54 @@ function CommentsSection({ noteId }: { noteId: string }) {
 
   return (
     <div style={{ marginTop: 10, borderTop: "1px solid rgba(0,0,0,0.07)", paddingTop: 8 }}>
-      <button
-        onClick={handleToggle}
-        style={{ background: "none", border: "none", cursor: "pointer", fontFamily: "'DM Sans', sans-serif", fontSize: "0.68rem", color: "#B8957E", padding: 0, display: "flex", alignItems: "center", gap: 4 }}
-      >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="11" height="11"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
-        {open ? "hide" : "respond"}
-      </button>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        {/* Reply icon button */}
+        <button
+          onClick={() => setShowForm(!showForm)}
+          title="Leave a response"
+          className="report-btn"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12">
+            <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
+          </svg>
+          <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.65rem", fontWeight: 400 }}>
+            respond
+          </span>
+        </button>
 
-      {open && (
-        <div style={{ marginTop: 10 }}>
-          {loading ? (
-            <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.72rem", color: "#B8957E" }}>Loading...</p>
-          ) : comments.length === 0 ? (
-            <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.72rem", color: "#B8957E", fontStyle: "italic" }}>No responses yet.</p>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 12 }}>
-              {comments.map((c) => (
-                <div key={c.id} style={{ background: "rgba(255,255,255,0.5)", borderRadius: 4, padding: "8px 10px" }}>
-                  <p style={{ fontFamily: "'Caveat', cursive", fontSize: "1rem", color: "#2C1810", lineHeight: 1.5, margin: 0 }}>{c.text}</p>
-                  <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 4 }}>
-                    {c.country_code && <img src={`https://flagcdn.com/${c.country_code.toLowerCase()}.svg`} alt={c.country || ""} style={{ width: 12, height: 9 }} />}
-                    <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.62rem", color: "#B8957E" }}>{c.country} · {timeAgo(c.created_at)}</span>
-                  </div>
-                </div>
-              ))}
+        {/* Hide toggle — only show if comments are visible */}
+        {open && comments.length > 0 && (
+          <button
+            onClick={() => setOpen(false)}
+            style={{ background: "none", border: "none", cursor: "pointer", fontFamily: "'DM Sans', sans-serif", fontSize: "0.65rem", color: "#B8957E", padding: 0 }}
+          >
+            hide
+          </button>
+        )}
+      </div>
+
+      {/* Comments list */}
+      {open && !loading && comments.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 8 }}>
+          {comments.map((c) => (
+            <div key={c.id} style={{ background: "rgba(255,255,255,0.5)", borderRadius: 4, padding: "8px 10px" }}>
+              <p style={{ fontFamily: "'Caveat', cursive", fontSize: "1rem", color: "#2C1810", lineHeight: 1.5, margin: 0 }}>{c.text}</p>
+              <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 4 }}>
+                {c.country_code && <img src={`https://flagcdn.com/${c.country_code.toLowerCase()}.svg`} alt={c.country || ""} style={{ width: 12, height: 9 }} />}
+                <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.62rem", color: "#B8957E" }}>{c.country} · {timeAgo(c.created_at)}</span>
+              </div>
             </div>
-          )}
+          ))}
+        </div>
+      )}
 
+      {/* Reply form — toggled by respond button */}
+      {showForm && (
+        <div style={{ marginTop: 8 }}>
           {done ? (
             <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.75rem", color: "#7CB87C", fontStyle: "italic" }}>🌿 Response added.</p>
           ) : (
-            <div>
+            <>
               <textarea
                 value={text}
                 onChange={(e) => setText(e.target.value.slice(0, maxChars))}
@@ -192,7 +206,7 @@ function CommentsSection({ noteId }: { noteId: string }) {
                 rows={2}
                 style={{ width: "100%", background: "rgba(255,255,255,0.6)", border: "1px solid rgba(0,0,0,0.1)", borderRadius: 4, padding: "8px 10px", fontFamily: "'Caveat', cursive", fontSize: "1rem", color: "#2C1810", resize: "none", outline: "none", lineHeight: 1.5 }}
               />
-              <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6 }}>
+              <div className="comment-country" style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6 }}>
                 <div style={{ flex: 1 }}>
                   <CountryInput onSelect={(name, code) => { setCountryName(name); setCountryCode(code); }} />
                 </div>
@@ -204,7 +218,7 @@ function CommentsSection({ noteId }: { noteId: string }) {
                   {posting ? "..." : "Post"}
                 </button>
               </div>
-            </div>
+            </>
           )}
         </div>
       )}
