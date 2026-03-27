@@ -102,7 +102,7 @@ function ReportButton({ noteId }: { noteId: string }) {
 }
 
 function CommentsSection({ noteId }: { noteId: string }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(true);
   const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(false);
   const [text, setText] = useState("");
@@ -111,6 +111,8 @@ function CommentsSection({ noteId }: { noteId: string }) {
   const [posting, setPosting] = useState(false);
   const [done, setDone] = useState(false);
   const maxChars = 280;
+
+  useEffect(() => { loadComments(); }, []);
 
   async function loadComments() {
     setLoading(true);
