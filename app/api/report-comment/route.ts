@@ -10,6 +10,12 @@ export async function POST(req: NextRequest) {
   const { commentId } = await req.json();
   if (!commentId) return NextResponse.json({ error: "invalid" }, { status: 400 });
 
+  const { data: comment } = await supabase
+    .from("comments")
+    .select("text, country")
+    .eq("id", commentId)
+    .single();
+
   await supabase.from("comments").update({ reported: true }).eq("id", commentId);
 
   const token = process.env.TELEGRAM_BOT_TOKEN;
@@ -20,7 +26,7 @@ export async function POST(req: NextRequest) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         chat_id: chatId,
-        text: `🚩 Comment reported\nID: ${commentId}`,
+        text: `🚩 Comment reported\n\n"${comment?.text}"\n\n🌍 ${comment?.country || "Unknown"}\nID: ${commentId}`,
       }),
     });
   }
