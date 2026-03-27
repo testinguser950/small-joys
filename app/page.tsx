@@ -431,7 +431,11 @@ export default function Home() {
   setLoading(false);
 }
 
-  useEffect(() => { loadNotes(); }, []);
+  useEffect(() => {
+    loadNotes();
+    const interval = setInterval(loadNotes, 60000);
+    return () => clearInterval(interval);
+  }, []);
 
   function openModal() {
     setPrefillText(undefined);
