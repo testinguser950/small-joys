@@ -101,6 +101,38 @@ function ReportButton({ noteId }: { noteId: string }) {
   );
 }
 
+function ReportCommentButton({ commentId }: { commentId: string }) {
+  const [reported, setReported] = useState(false);
+  const [reporting, setReporting] = useState(false);
+
+  async function handleReport(e: React.MouseEvent) {
+    e.stopPropagation();
+    if (reported || reporting) return;
+    setReporting(true);
+    await fetch("/api/report-comment", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ commentId }),
+    });
+    setReporting(false);
+    setReported(true);
+  }
+
+  return (
+    <button
+      onClick={handleReport}
+      title={reported ? "Reported" : "Report this comment"}
+      className="report-btn"
+      style={{ color: reported ? "#C4763A" : undefined }}
+    >
+      <svg viewBox="0 0 24 24" fill={reported ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" width="10" height="10">
+        <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/>
+        <line x1="4" y1="22" x2="4" y2="15"/>
+      </svg>
+    </button>
+  );
+}
+
 function CommentsSection({ noteId }: { noteId: string }) {
   const [open, setOpen] = useState(false);
   const [showForm, setShowForm] = useState(false);
