@@ -146,6 +146,7 @@ function CommentsSection({ noteId }: { noteId: string }) {
   const [countryCode, setCountryCode] = useState("");
   const [posting, setPosting] = useState(false);
   const [done, setDone] = useState(false);
+  const hasPosted = useRef(false);
   const maxChars = 280;
 
   useEffect(() => { loadComments(); }, []);
@@ -164,25 +165,36 @@ function CommentsSection({ noteId }: { noteId: string }) {
     setLoading(false);
   }
 
-  async function handlePost() {
-    if (!text.trim() || !countryName || posting) return;
-    setPosting(true);
-    const res = await fetch("/api/post-comment", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ noteId, text: text.trim(), country: countryName, country_code: countryCode }),
-    });
-    const data = await res.json();
-    setPosting(false);
-    if (data.error === "flagged") { alert("That one didn't make it through. Please keep it kind."); return; }
-    if (!res.ok) { alert("Something went wrong. Please try again."); return; }
-    setText("");
-    setCountryName("");
-    setCountryCode("");
-    setDone(true);
-    await loadComments();
-    setTimeout(() => setDone(false), 2000);
+  async function uploadPhoto(file: File): Promise<string | null> {
+    const ext = file.name.split(".").pop();
+    const filename = `${Date.now()}.${ext}`;
+    const { data, error } = await supabase.storage
+      .from("photos")
+      .upload(filename, file, { contentType: file.type, upsert: false });
+    if (error) return null;
+    const { data: urlData } = supabase.storage.from("photos").getPublicUrl(filename);
+    return urlData.publicUrl;
   }
+
+ async function handlePost() {
+  if (!text.trim() || !countryName || posting) return;
+  setPosting(true);
+  const res = await fetch("/api/post-comment", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ noteId, text: text.trim(), country: countryName, country_code: countryCode }),
+  });
+  const data = await res.json();
+  setPosting(false);
+  if (data.error === "flagged") { alert("That one didn't make it through. Please keep it kind."); return; }
+  if (!res.ok) { alert("Something went wrong. Please try again."); return; }
+  setText("");
+  setCountryName("");
+  setCountryCode("");
+  setDone(true);
+  await loadComments();
+  setTimeout(() => setDone(false), 2000);
+}
 
   return (
     <div style={{ marginTop: 10, borderTop: "1px solid rgba(0,0,0,0.07)", paddingTop: 8 }}>
@@ -376,17 +388,36 @@ function PostModal({ onClose, onPosted, prefillText }: { onClose: () => void; on
   const [done, setDone] = useState(false);
   const hasPosted = useRef(false);
   const maxChars = 280;
+  const [photo, setPhoto] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
 
-  async function handlePost() {
+ async function handlePost() {
     if (!text.trim()) return;
     if (hasPosted.current) return;
     hasPosted.current = true;
     setPosting(true);
 
+    let photo_url = null;
+    if (photo) {
+      const ext = photo.name.split(".").pop();
+      const filename = `${Date.now()}.${ext}`;
+      const { error } = await supabase.storage
+        .from("photos")
+        .upload(filename, photo, { contentType: photo.type, upsert: false });
+      if (error) {
+        alert("Photo upload failed. Please try again.");
+        setPosting(false);
+        hasPosted.current = false;
+        return;
+      }
+      const { data: urlData } = supabase.storage.from("photos").getPublicUrl(filename);
+      photo_url = urlData.publicUrl;
+    }
+
     const res = await fetch("/api/post-note", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text: text.trim(), country: countryName || null, country_code: countryCode || null, photo_url: null }),
+      body: JSON.stringify({ text: text.trim(), country: countryName || null, country_code: countryCode || null, photo_url }),
     });
 
     const data = await res.json();
@@ -406,7 +437,9 @@ function PostModal({ onClose, onPosted, prefillText }: { onClose: () => void; on
         {done ? (
           <div className="modal-success">
             <p className="modal-success-icon">🌿</p>
-            <p className="modal-success-text">Your joy is on the wall.</p>
+            <p className="modal-success-text">
+              {photo ? "Your note is being reviewed and will appear shortly." : "Your joy is on the wall."}
+            </p>
           </div>
         ) : (
           <>
@@ -414,6 +447,32 @@ function PostModal({ onClose, onPosted, prefillText }: { onClose: () => void; on
             <p className="modal-subtitle">Anonymous. No account needed. Just something that made your day.</p>
             <textarea className="modal-textarea" placeholder="Today..." value={text} onChange={(e) => setText(e.target.value.slice(0, maxChars))} rows={4} autoFocus />
             <div className="modal-char-count">{text.length}/{maxChars}</div>
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ display: "block", fontFamily: "'DM Sans', sans-serif", fontSize: "0.8rem", color: "#8B6F5E", marginBottom: 8 }}>
+                Add a photo <span style={{ color: "#B8957E", fontWeight: 300 }}>(optional — reviewed before posting)</span>
+              </label>
+              {photoPreview ? (
+                <div style={{ position: "relative", display: "inline-block" }}>
+                  <img src={photoPreview} alt="preview" style={{ maxWidth: "100%", maxHeight: 160, borderRadius: 6, display: "block" }} />
+                  <button
+                    onClick={() => { setPhoto(null); setPhotoPreview(null); }}
+                    style={{ position: "absolute", top: 4, right: 4, background: "rgba(0,0,0,0.5)", border: "none", borderRadius: "50%", width: 22, height: 22, color: "white", cursor: "pointer", fontSize: 12, display: "flex", alignItems: "center", justifyContent: "center" }}
+                  >✕</button>
+                </div>
+              ) : (
+                <label style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 16px", border: "1px dashed rgba(0,0,0,0.2)", borderRadius: 6, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", fontSize: "0.82rem", color: "#8B6F5E" }}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+                  Choose photo
+                  <input type="file" accept="image/*" style={{ display: "none" }} onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    if (file.size > 5 * 1024 * 1024) { alert("Please choose a photo under 5MB."); return; }
+                    setPhoto(file);
+                    setPhotoPreview(URL.createObjectURL(file));
+                  }} />
+                </label>
+              )}
+            </div>
             <CountryInput onSelect={(name, code) => { setCountryName(name); setCountryCode(code); }} />
             <div className="modal-actions">
               <button className="btn-cancel" onClick={onClose}>Cancel</button>
