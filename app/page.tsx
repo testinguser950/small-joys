@@ -229,22 +229,36 @@ function PostModal({ onClose, onPosted, prefillText }: { onClose: () => void; on
 
 export default function Home() {
   const [notes, setNotes] = useState<Note[]>([]);
+  const [todayNotes, setTodayNotes] = useState<Note[]>([]);
+  const [olderNotes, setOlderNotes] = useState<Note[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [prefillText, setPrefillText] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(true);
 
   async function loadNotes() {
-    const { data } = await supabase
-      .from("notes")
-      .select("*")
-      .eq("approved", true)
-      .order("created_at", { ascending: false })
-      .limit(100);
-    if (data) {
-      setNotes(data.map((note, i) => ({ ...note, color: NOTE_COLORS[i % NOTE_COLORS.length], rotate: NOTE_ROTATIONS[i % NOTE_ROTATIONS.length] })));
-    }
-    setLoading(false);
-  }
+  const today = new Date().toISOString().split("T")[0];
+
+  const [{ data: todayData }, { data: olderData }] = await Promise.all([
+    supabase.from("notes").select("*").eq("approved", true)
+      .gte("created_at", `${today}T00:00:00`)
+      .order("created_at", { ascending: false }).limit(50),
+    supabase.from("notes").select("*").eq("approved", true)
+      .lt("created_at", `${today}T00:00:00`)
+      .order("created_at", { ascending: false }).limit(100),
+  ]);
+
+  const allNotes = [...(todayData || []), ...(olderData || [])];
+  const withStyle = (arr: any[]) => arr.map((note, i) => ({
+    ...note,
+    color: NOTE_COLORS[i % NOTE_COLORS.length],
+    rotate: NOTE_ROTATIONS[i % NOTE_ROTATIONS.length],
+  }));
+
+  setTodayNotes(withStyle(todayData || []));
+  setOlderNotes(withStyle(olderData || []));
+  setNotes(withStyle(allNotes));
+  setLoading(false);
+}
 
   useEffect(() => { loadNotes(); }, []);
 
@@ -375,11 +389,40 @@ export default function Home() {
         ) : notes.length === 0 ? (
           <div className="wall-empty">No notes yet. Be the first to share a small joy.</div>
         ) : (
-          <Masonry breakpointCols={{ default: 4, 1100: 3, 700: 2, 500: 1 }} className="masonry-grid" columnClassName="masonry-column">
-            {notes.map((note) => (
-              <StickyNote key={note.id} note={note} />
-            ))}
-          </Masonry>
+          <>
+            {/* Today section */}
+            <div style={{ maxWidth: 1200, margin: "0 auto", padding: "32px 24px 0", display: "flex", alignItems: "center", gap: 12 }}>
+              <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.7rem", fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "#C4763A" }}>Today</span>
+              <div style={{ flex: 1, height: 1, background: "rgba(196,118,58,0.2)" }} />
+            </div>
+
+            {todayNotes.length === 0 ? (
+              <div style={{ maxWidth: 1200, margin: "12px auto 0", padding: "0 24px" }}>
+                <div style={{ border: "1.5px dashed rgba(196,118,58,0.35)", borderRadius: 6, padding: "12px 16px", fontFamily: "'DM Sans', sans-serif", fontSize: "0.82rem", color: "#C4763A", fontStyle: "italic", textAlign: "center", background: "rgba(196,118,58,0.04)" }}>
+                  Nothing yet today — be the first?
+                </div>
+              </div>
+            ) : (
+              <Masonry breakpointCols={{ default: 4, 1100: 3, 700: 2, 500: 1 }} className="masonry-grid" columnClassName="masonry-column" style={{ paddingBottom: 8 }}>
+                {todayNotes.map((note) => <StickyNote key={note.id} note={note} />)}
+              </Masonry>
+            )}
+
+            {/* Earlier divider */}
+            {olderNotes.length > 0 && (
+              <>
+                <div style={{ maxWidth: 1200, margin: "0 auto", padding: "8px 24px 0", display: "flex", alignItems: "center", gap: 12 }}>
+                  <div style={{ flex: 1, height: 1, background: "rgba(0,0,0,0.07)" }} />
+                  <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.68rem", letterSpacing: "0.1em", textTransform: "uppercase", color: "#B8957E" }}>Earlier</span>
+                  <div style={{ flex: 1, height: 1, background: "rgba(0,0,0,0.07)" }} />
+                </div>
+
+                <Masonry breakpointCols={{ default: 4, 1100: 3, 700: 2, 500: 1 }} className="masonry-grid" columnClassName="masonry-column">
+                  {olderNotes.map((note) => <StickyNote key={note.id} note={note} />)}
+                </Masonry>
+              </>
+            )}
+          </>
         )}
       </main>
 
