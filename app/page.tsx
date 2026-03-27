@@ -218,6 +218,7 @@ function CommentsSection({ noteId }: { noteId: string }) {
               <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 4 }}>
                 {c.country_code && <img src={`https://flagcdn.com/${c.country_code.toLowerCase()}.svg`} alt={c.country || ""} style={{ width: 12, height: 9 }} />}
                 <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.62rem", color: "#B8957E" }}>{c.country} · {timeAgo(c.created_at)}</span>
+                <ReportCommentButton commentId={c.id} />
               </div>
             </div>
           ))}
