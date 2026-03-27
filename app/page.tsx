@@ -49,6 +49,15 @@ type Note = {
   rotate?: string;
 };
 
+type Comment = {
+  id: string;
+  note_id: string;
+  text: string;
+  country: string | null;
+  country_code: string | null;
+  created_at: string;
+};
+
 function timeAgo(dateStr: string) {
   const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
   if (diff < 60) return "just now";
@@ -92,6 +101,115 @@ function ReportButton({ noteId }: { noteId: string }) {
   );
 }
 
+function CommentsSection({ noteId }: { noteId: string }) {
+  const [open, setOpen] = useState(false);
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [text, setText] = useState("");
+  const [countryName, setCountryName] = useState("");
+  const [countryCode, setCountryCode] = useState("");
+  const [posting, setPosting] = useState(false);
+  const [done, setDone] = useState(false);
+  const maxChars = 280;
+
+  async function loadComments() {
+    setLoading(true);
+    const { data } = await supabase
+      .from("comments")
+      .select("*")
+      .eq("note_id", noteId)
+      .eq("approved", true)
+      .order("created_at", { ascending: true });
+    setComments(data || []);
+    setLoading(false);
+  }
+
+  function handleToggle() {
+    if (!open) loadComments();
+    setOpen(!open);
+  }
+
+  async function handlePost() {
+    if (!text.trim() || !countryName || posting) return;
+    setPosting(true);
+    const res = await fetch("/api/post-comment", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ noteId, text: text.trim(), country: countryName, country_code: countryCode }),
+    });
+    const data = await res.json();
+    setPosting(false);
+    if (data.error === "flagged") { alert("That one didn't make it through. Please keep it kind."); return; }
+    if (!res.ok) { alert("Something went wrong. Please try again."); return; }
+    setText("");
+    setCountryName("");
+    setCountryCode("");
+    setDone(true);
+    await loadComments();
+    setTimeout(() => setDone(false), 2000);
+  }
+
+  return (
+    <div style={{ marginTop: 10, borderTop: "1px solid rgba(0,0,0,0.07)", paddingTop: 8 }}>
+      <button
+        onClick={handleToggle}
+        style={{ background: "none", border: "none", cursor: "pointer", fontFamily: "'DM Sans', sans-serif", fontSize: "0.68rem", color: "#B8957E", padding: 0, display: "flex", alignItems: "center", gap: 4 }}
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="11" height="11"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+        {open ? "hide" : "respond"}
+      </button>
+
+      {open && (
+        <div style={{ marginTop: 10 }}>
+          {loading ? (
+            <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.72rem", color: "#B8957E" }}>Loading...</p>
+          ) : comments.length === 0 ? (
+            <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.72rem", color: "#B8957E", fontStyle: "italic" }}>No responses yet.</p>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 12 }}>
+              {comments.map((c) => (
+                <div key={c.id} style={{ background: "rgba(255,255,255,0.5)", borderRadius: 4, padding: "8px 10px" }}>
+                  <p style={{ fontFamily: "'Caveat', cursive", fontSize: "1rem", color: "#2C1810", lineHeight: 1.5, margin: 0 }}>{c.text}</p>
+                  <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 4 }}>
+                    {c.country_code && <img src={`https://flagcdn.com/${c.country_code.toLowerCase()}.svg`} alt={c.country || ""} style={{ width: 12, height: 9 }} />}
+                    <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.62rem", color: "#B8957E" }}>{c.country} · {timeAgo(c.created_at)}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {done ? (
+            <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.75rem", color: "#7CB87C", fontStyle: "italic" }}>🌿 Response added.</p>
+          ) : (
+            <div>
+              <textarea
+                value={text}
+                onChange={(e) => setText(e.target.value.slice(0, maxChars))}
+                placeholder="Leave a response..."
+                rows={2}
+                style={{ width: "100%", background: "rgba(255,255,255,0.6)", border: "1px solid rgba(0,0,0,0.1)", borderRadius: 4, padding: "8px 10px", fontFamily: "'Caveat', cursive", fontSize: "1rem", color: "#2C1810", resize: "none", outline: "none", lineHeight: 1.5 }}
+              />
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6 }}>
+                <div style={{ flex: 1 }}>
+                  <CountryInput onSelect={(name, code) => { setCountryName(name); setCountryCode(code); }} />
+                </div>
+                <button
+                  onClick={handlePost}
+                  disabled={!text.trim() || !countryName || posting}
+                  style={{ padding: "6px 14px", background: "#2C1810", border: "none", borderRadius: 100, fontFamily: "'DM Sans', sans-serif", fontSize: "0.75rem", fontWeight: 500, color: "#FAF6EF", cursor: "pointer", opacity: (!text.trim() || !countryName || posting) ? 0.4 : 1, whiteSpace: "nowrap" }}
+                >
+                  {posting ? "..." : "Post"}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function StickyNote({ note }: { note: Note }) {
   return (
     <div className="sticky-note" style={{ backgroundColor: note.color, transform: `rotate(${note.rotate})` }}>
@@ -110,6 +228,7 @@ function StickyNote({ note }: { note: Note }) {
           <ReportButton noteId={note.id} />
         </div>
       </div>
+      <CommentsSection noteId={note.id} />
     </div>
   );
 }
@@ -319,6 +438,7 @@ export default function Home() {
         .country-input-inner:focus-within { border-color: rgba(44,24,16,0.3); }
         .modal-country-input { width: 100%; background: transparent; border: none; padding: 10px 0; font-family: 'DM Sans', sans-serif; font-size: 0.875rem; color: #2C1810; outline: none; }
         .modal-country-input::placeholder { color: #C4A99A; }
+        .comment-country .country-input-wrap { margin-bottom: 0; }
         .country-dropdown { position: absolute; top: calc(100% + 4px); left: 0; right: 0; background: #FFF8F0; border: 1px solid rgba(0,0,0,0.1); border-radius: 6px; list-style: none; z-index: 200; box-shadow: 0 4px 16px rgba(0,0,0,0.08); overflow: hidden; }
         .country-option { display: flex; align-items: center; gap: 10px; padding: 9px 16px; font-family: 'DM Sans', sans-serif; font-size: 0.875rem; color: #2C1810; cursor: pointer; transition: background 0.1s; }
         .country-option:hover { background: rgba(44,24,16,0.05); }
