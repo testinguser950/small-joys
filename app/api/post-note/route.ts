@@ -106,7 +106,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Only run text moderation if there's text
-    if (text?.trim()) {
+    if (text?.trim() && !photo_url) {
       if (leoProfanity.check(text)) {
         return NextResponse.json({ error: "flagged" }, { status: 400 });
       }
@@ -154,8 +154,8 @@ export async function POST(req: NextRequest) {
     // Telegram notification for photo posts needing review
     const token = process.env.TELEGRAM_BOT_TOKEN;
     const chatId = process.env.TELEGRAM_CHAT_ID;
-    if (photo_url && token && chatId) {
-      await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      if (photo_url && token && chatId) {
+        fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
